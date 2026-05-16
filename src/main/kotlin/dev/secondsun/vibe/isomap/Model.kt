@@ -28,13 +28,15 @@ data class Tile(
     val color: Color,
     val rampDirection: RampDirection = RampDirection.NORTH,
     val rampAngle: RampAngle = RampAngle.ANGLE_45,
-    val texture: TextureType = TextureType.NONE
+    val topTexture: TextureType = TextureType.NONE,
+    val sideTexture: TextureType = TextureType.NONE
 )
 
 data class Polygon(
     val vertices: Array<Vector3>,
     val color: Color,
-    val texture: TextureType = TextureType.NONE
+    val texture: TextureType = TextureType.NONE,
+    val uvs: Array<Vector2>? = null
 ) {
     // For Painter's Algorithm
     var averageZ: Int = 0
@@ -64,60 +66,69 @@ class MapModel {
         // Central platform
         for (i in 2..5) {
             for (j in 2..5) {
-                tiles[i][j] = Tile(TileType.CUBE, 2, Color(0xDAA520), texture = TextureType.ROAD)
+                tiles[i][j] = Tile(TileType.CUBE, 2, Color(0xDAA520), topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
             }
         }
 
         // Center Pillar
-        tiles[3][3] = Tile(TileType.CUBE, 5, Color.YELLOW, texture = TextureType.ROOF)
-        tiles[4][3] = Tile(TileType.CUBE, 5, Color.YELLOW, texture = TextureType.ROOF)
-        tiles[3][4] = Tile(TileType.CUBE, 5, Color.YELLOW, texture = TextureType.ROOF)
-        tiles[4][4] = Tile(TileType.CUBE, 5, Color.YELLOW, texture = TextureType.ROOF)
+        tiles[3][3] = Tile(TileType.CUBE, 5, Color.YELLOW, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL_2)
+        tiles[4][3] = Tile(TileType.CUBE, 5, Color.YELLOW, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL_2)
+        tiles[3][4] = Tile(TileType.CUBE, 5, Color.YELLOW, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL_2)
+        tiles[4][4] = Tile(TileType.CUBE, 5, Color.YELLOW, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL_2)
 
         // Ramps pointing towards the center from all 4 cardinal directions
         // North (moving UP towards +Z)
-        tiles[3][1] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.NORTH, RampAngle.ANGLE_45, TextureType.ROAD)
-        tiles[4][1] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.NORTH, RampAngle.ANGLE_45, TextureType.ROAD)
+        tiles[3][1] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.EAST, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
+        tiles[4][1] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.NORTH, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
 
         // South (moving UP towards -Z)
-        tiles[3][6] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.SOUTH, RampAngle.ANGLE_45, TextureType.ROAD)
-        tiles[4][6] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.SOUTH, RampAngle.ANGLE_45, TextureType.ROAD)
+        tiles[3][6] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.SOUTH, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
+        tiles[4][6] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.SOUTH, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
 
         // East (moving UP towards +X)
-        tiles[1][3] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.EAST, RampAngle.ANGLE_45, TextureType.ROAD)
-        tiles[1][4] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.EAST, RampAngle.ANGLE_45, TextureType.ROAD)
+        tiles[1][3] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.EAST, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
+        tiles[1][4] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.EAST, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
 
         // West (moving UP towards -X)
-        tiles[6][3] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.WEST, RampAngle.ANGLE_45, TextureType.ROAD)
-        tiles[6][4] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.WEST, RampAngle.ANGLE_45, TextureType.ROAD)
+        tiles[6][3] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.WEST, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
+        tiles[6][4] = Tile(TileType.RAMP, 2, Color(0xDAA520), RampDirection.WEST, RampAngle.ANGLE_45, topTexture = TextureType.ROAD, sideTexture = TextureType.WALL)
 
         // Decorative ramps at the corners of the platform
-        tiles[2][2] = Tile(TileType.RAMP, 2, Color.RED, RampDirection.NORTH, RampAngle.ANGLE_22_5, TextureType.BRIDGE)
-        tiles[5][2] = Tile(TileType.RAMP, 2, Color.RED, RampDirection.NORTH, RampAngle.ANGLE_22_5, TextureType.BRIDGE)
-        tiles[2][5] = Tile(TileType.RAMP, 2, Color.BLUE, RampDirection.SOUTH, RampAngle.ANGLE_22_5, TextureType.BRIDGE)
-        tiles[5][5] = Tile(TileType.RAMP, 2, Color.BLUE, RampDirection.SOUTH, RampAngle.ANGLE_22_5, TextureType.BRIDGE)
+        tiles[2][2] = Tile(TileType.RAMP, 2, Color.RED, RampDirection.NORTH, RampAngle.ANGLE_22_5, topTexture = TextureType.BRIDGE, sideTexture = TextureType.WALL)
+        tiles[5][2] = Tile(TileType.RAMP, 2, Color.RED, RampDirection.NORTH, RampAngle.ANGLE_22_5, topTexture = TextureType.BRIDGE, sideTexture = TextureType.WALL)
+        tiles[2][5] = Tile(TileType.RAMP, 2, Color.BLUE, RampDirection.SOUTH, RampAngle.ANGLE_22_5, topTexture = TextureType.BRIDGE, sideTexture = TextureType.WALL)
+        tiles[5][5] = Tile(TileType.RAMP, 2, Color.BLUE, RampDirection.SOUTH, RampAngle.ANGLE_22_5, topTexture = TextureType.BRIDGE, sideTexture = TextureType.WALL)
 
         // Corner water pits
-        tiles[0][0] = Tile(TileType.CUBE, 0, Color.BLUE, texture = TextureType.WATER)
-        tiles[7][0] = Tile(TileType.CUBE, 0, Color.BLUE, texture = TextureType.WATER)
-        tiles[0][7] = Tile(TileType.CUBE, 0, Color.BLUE, texture = TextureType.WATER)
-        tiles[7][7] = Tile(TileType.CUBE, 0, Color.BLUE, texture = TextureType.WATER)
+        tiles[0][0] = Tile(TileType.CUBE, 0, Color.BLUE, topTexture = TextureType.WATER)
+        tiles[7][0] = Tile(TileType.CUBE, 0, Color.BLUE, topTexture = TextureType.WATER)
+        tiles[0][7] = Tile(TileType.CUBE, 0, Color.BLUE, topTexture = TextureType.WATER)
+        tiles[7][7] = Tile(TileType.CUBE, 0, Color.BLUE, topTexture = TextureType.WATER)
 
         // Floating stones
-        tiles[0][3] = Tile(TileType.CUBE, 4, Color.WHITE, texture = TextureType.LAVA) // Now lava stones!
-        tiles[0][2] = Tile(TileType.RAMP, 4, Color.WHITE, RampDirection.NORTH, RampAngle.ANGLE_15, TextureType.LAVA)
-        tiles[3][0] = Tile(TileType.CUBE, 4, Color.WHITE, texture = TextureType.LAVA)
-        tiles[7][4] = Tile(TileType.CUBE, 4, Color.WHITE, texture = TextureType.LAVA)
-        tiles[4][7] = Tile(TileType.CUBE, 4, Color.WHITE, texture = TextureType.LAVA)
+        tiles[0][3] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA) // Now lava stones!
+        tiles[0][2] = Tile(TileType.RAMP, 4, Color.WHITE, RampDirection.NORTH, RampAngle.ANGLE_15, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
+        tiles[3][0] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
+        tiles[7][4] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
+        tiles[4][7] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
         
         // Pyramids
-        tiles[1][1] = Tile(TileType.PYRAMID, 1, Color.CYAN)
-        tiles[6][1] = Tile(TileType.PYRAMID, 2, Color.MAGENTA)
-        tiles[1][6] = Tile(TileType.PYRAMID, 3, Color.ORANGE)
-        tiles[6][6] = Tile(TileType.PYRAMID, 4, Color.PINK)
+        tiles[1][1] = Tile(TileType.PYRAMID, 1, Color.CYAN, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL)
+        tiles[6][1] = Tile(TileType.PYRAMID, 2, Color.MAGENTA, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL)
+        tiles[1][6] = Tile(TileType.PYRAMID, 3, Color.ORANGE, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL)
+        tiles[6][6] = Tile(TileType.PYRAMID, 4, Color.PINK, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL)
 
         // Add some sprites
         sprites.add(Sprite(FixedMath.fromFloat(1.5f), FixedMath.fromFloat(1.0f), FixedMath.fromFloat(1.5f), SpriteDirection.S, isWalking = true))
+    }
+
+    fun getColumnHeight(x: Int, z: Int): Int {
+        if (x !in 0 until size || z !in 0 until size) return 0
+        val tile = tiles[x][z]
+        return when (tile.type) {
+            TileType.CUBE -> tile.height.toInt()
+            TileType.PYRAMID, TileType.RAMP -> (tile.height - 1).coerceAtLeast(0).toInt()
+        }
     }
 
     fun generatePolygons(): List<Polygon> {
@@ -125,24 +136,27 @@ class MapModel {
         for (x in 0 until size) {
             for (z in 0 until size) {
                 val tile = tiles[x][z]
+                val hFront = getColumnHeight(x, z + 1)
+                val hRight = getColumnHeight(x + 1, z)
+                val hBack = getColumnHeight(x, z - 1)
+                val hLeft = getColumnHeight(x - 1, z)
                 when (tile.type) {
-                    TileType.CUBE -> polygons.addAll(generateCubePolygons(x.toShort(), z.toShort(), tile.height, tile.color, tile.texture))
-                    TileType.RAMP -> polygons.addAll(generateRampPolygons(x.toShort(), z.toShort(), tile))
-                    TileType.PYRAMID -> polygons.addAll(generatePyramidPolygons(x.toShort(), z.toShort(), tile))
+                    TileType.CUBE -> polygons.addAll(generateCubePolygons(x.toShort(), z.toShort(), tile.height, tile.color, tile.topTexture, tile.sideTexture, hFront, hRight, hBack, hLeft))
+                    TileType.RAMP -> polygons.addAll(generateRampPolygons(x.toShort(), z.toShort(), tile, hFront, hRight, hBack, hLeft))
+                    TileType.PYRAMID -> polygons.addAll(generatePyramidPolygons(x.toShort(), z.toShort(), tile, hFront, hRight, hBack, hLeft))
                 }
             }
         }
         return polygons
     }
 
-    fun generatePyramidPolygons(x: Short, z: Short, tile: Tile): List<Polygon> {
+    fun generatePyramidPolygons(x: Short, z: Short, tile: Tile, hFront: Int = 0, hRight: Int = 0, hBack: Int = 0, hLeft: Int = 0): List<Polygon> {
         val pyramidPolys = mutableListOf<Polygon>()
         val color = tile.color
-        val texture = tile.texture
 
         // Base cube part (height - 1)
         if (tile.height > 1) {
-            pyramidPolys.addAll(generateCubePolygons(x, z, (tile.height - 1).toShort(), color, texture))
+            pyramidPolys.addAll(generateCubePolygons(x, z, (tile.height - 1).toShort(), color, tile.sideTexture, tile.sideTexture, hFront, hRight, hBack, hLeft))
         }
 
         val x0 = (x * FixedMath.ONE).toShort()
@@ -163,23 +177,25 @@ class MapModel {
         )
 
         // Side texture
-        val sideTex = if (texture != TextureType.NONE && texture != TextureType.WATER && texture != TextureType.LAVA) {
-            if (texture == TextureType.WALL || texture == TextureType.WALL_2) texture else TextureType.WALL
-        } else TextureType.NONE
+        val sideTex = tile.sideTexture
 
         // Back face
-        pyramidPolys.add(Polygon(arrayOf(v[0], v[1], v[4]), color.darker(), sideTex))
+        pyramidPolys.add(Polygon(arrayOf(v[0], v[1], v[4]), color.darker(), tile.topTexture, 
+            arrayOf(Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(8 shl 8, 16 shl 8))))
         // Right face
-        pyramidPolys.add(Polygon(arrayOf(v[1], v[2], v[4]), color.darker().darker(), sideTex))
+        pyramidPolys.add(Polygon(arrayOf(v[1], v[2], v[4]), color.darker().darker(), tile.topTexture,
+            arrayOf(Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(8 shl 8, 16 shl 8))))
         // Front face
-        pyramidPolys.add(Polygon(arrayOf(v[2], v[3], v[4]), color.darker(), sideTex))
+        pyramidPolys.add(Polygon(arrayOf(v[2], v[3], v[4]), color.darker(), tile.topTexture,
+            arrayOf(Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(8 shl 8, 16 shl 8))))
         // Left face
-        pyramidPolys.add(Polygon(arrayOf(v[3], v[0], v[4]), color.darker().darker(), sideTex))
+        pyramidPolys.add(Polygon(arrayOf(v[3], v[0], v[4]), color.darker().darker(), tile.topTexture,
+            arrayOf(Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(8 shl 8, 16 shl 8))))
 
         return pyramidPolys
     }
 
-    fun generateCubePolygons(x: Short, z: Short, h: Short, color: Color, texture: TextureType = TextureType.NONE): List<Polygon> {
+    fun generateCubePolygons(x: Short, z: Short, h: Short, color: Color, topTexture: TextureType = TextureType.NONE, sideTexture: TextureType = TextureType.NONE, hFront: Int = 0, hRight: Int = 0, hBack: Int = 0, hLeft: Int = 0): List<Polygon> {
         // Cube vertices
         // Base is at y=0 (or ground level)
         // Height is h.
@@ -203,29 +219,41 @@ class MapModel {
         )
 
         val cubePolys = mutableListOf<Polygon>()
-        
-        // Side texture: Use WALL for sides if textured, unless it's water/lava
-        val sideTex = if (texture != TextureType.NONE && texture != TextureType.WATER && texture != TextureType.LAVA) {
-             if (texture == TextureType.WALL || texture == TextureType.WALL_2) texture else TextureType.WALL
-        } else TextureType.NONE
 
         // Top face
-        cubePolys.add(Polygon(arrayOf(v[4], v[5], v[6], v[7]), color, texture))
+        cubePolys.add(Polygon(arrayOf(v[4], v[5], v[6], v[7]), color, topTexture,
+            arrayOf(Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(16 shl 8, 16 shl 8), Vector2(0, 16 shl 8))))
         // Front face (towards increasing Z)
-        cubePolys.add(Polygon(arrayOf(v[3], v[2], v[6], v[7]), color.darker(), sideTex))
+        if (hFront < h) {
+            val yL = (hFront * FixedMath.ONE).toShort()
+            cubePolys.add(Polygon(arrayOf(Vector3(x0, yL, z1), Vector3(x1, yL, z1), v[6], v[7]), color.darker(), sideTexture,
+                arrayOf(Vector2(0, hFront shl 12), Vector2(16 shl 8, hFront shl 12), Vector2(16 shl 8, h.toInt() shl 12), Vector2(0, h.toInt() shl 12))))
+        }
         // Right face (towards increasing X)
-        cubePolys.add(Polygon(arrayOf(v[1], v[2], v[6], v[5]), color.darker().darker(), sideTex))
+        if (hRight < h) {
+            val yL = (hRight * FixedMath.ONE).toShort()
+            cubePolys.add(Polygon(arrayOf(Vector3(x1, yL, z0), Vector3(x1, yL, z1), v[6], v[5]), color.darker().darker(), sideTexture,
+                arrayOf(Vector2(0, hRight shl 12), Vector2(16 shl 8, hRight shl 12), Vector2(16 shl 8, h.toInt() shl 12), Vector2(0, h.toInt() shl 12))))
+        }
         // Back face (towards decreasing Z)
-        cubePolys.add(Polygon(arrayOf(v[0], v[1], v[5], v[4]), color.darker(), sideTex))
+        if (hBack < h) {
+            val yL = (hBack * FixedMath.ONE).toShort()
+            cubePolys.add(Polygon(arrayOf(Vector3(x0, yL, z0), Vector3(x1, yL, z0), v[5], v[4]), color.darker(), sideTexture,
+                arrayOf(Vector2(0, hBack shl 12), Vector2(16 shl 8, hBack shl 12), Vector2(16 shl 8, h.toInt() shl 12), Vector2(0, h.toInt() shl 12))))
+        }
         // Left face (towards decreasing X)
-        cubePolys.add(Polygon(arrayOf(v[0], v[3], v[7], v[4]), color.darker().darker(), sideTex))
+        if (hLeft < h) {
+            val yL = (hLeft * FixedMath.ONE).toShort()
+            cubePolys.add(Polygon(arrayOf(Vector3(x0, yL, z0), Vector3(x0, yL, z1), v[7], v[4]), color.darker().darker(), sideTexture,
+                arrayOf(Vector2(0, hLeft shl 12), Vector2(16 shl 8, hLeft shl 12), Vector2(16 shl 8, h.toInt() shl 12), Vector2(0, h.toInt() shl 12))))
+        }
         // Bottom face (usually not seen)
         // cubePolys.add(Polygon(arrayOf(v[0], v[1], v[2], v[3]), color))
 
         return cubePolys
     }
 
-    fun generateRampPolygons(x: Short, z: Short, tile: Tile): List<Polygon> {
+    fun generateRampPolygons(x: Short, z: Short, tile: Tile, hFront: Int = 0, hRight: Int = 0, hBack: Int = 0, hLeft: Int = 0): List<Polygon> {
         val x0 = (x * FixedMath.ONE).toShort()
         val x1 = ((x + 1) * FixedMath.ONE).toShort()
         val z0 = (z * FixedMath.ONE).toShort()
@@ -271,23 +299,50 @@ class MapModel {
 
         val rampPolys = mutableListOf<Polygon>()
         val color = tile.color
-        val texture = tile.texture
-
-        // Side texture
-        val sideTex = if (texture != TextureType.NONE && texture != TextureType.WATER && texture != TextureType.LAVA) {
-            if (texture == TextureType.WALL || texture == TextureType.WALL_2) texture else TextureType.WALL
-        } else TextureType.NONE
 
         // Top face (the slope)
-        rampPolys.add(Polygon(arrayOf(v[4], v[5], v[6], v[7]), color, texture))
+        rampPolys.add(Polygon(arrayOf(v[4], v[5], v[6], v[7]), color, tile.topTexture,
+            arrayOf(Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(16 shl 8, 16 shl 8), Vector2(0, 16 shl 8))))
         // Front face (towards increasing Z)
-        rampPolys.add(Polygon(arrayOf(v[3], v[2], v[6], v[7]), color.darker(), sideTex))
+        if (hFront < tile.height) {
+            val yL = (hFront * FixedMath.ONE).toShort()
+            if (v[6].y > yL || v[7].y > yL) {
+                val v3_c = Vector3(x0, yL.coerceAtMost(v[7].y), z1)
+                val v2_c = Vector3(x1, yL.coerceAtMost(v[6].y), z1)
+                rampPolys.add(Polygon(arrayOf(v3_c, v2_c, v[6], v[7]), color.darker(), tile.sideTexture,
+                    arrayOf(Vector2(0, v3_c.y.toInt() shl 4), Vector2(16 shl 8, v2_c.y.toInt() shl 4), Vector2(16 shl 8, v[6].y.toInt() shl 4), Vector2(0, v[7].y.toInt() shl 4))))
+            }
+        }
         // Right face (towards increasing X)
-        rampPolys.add(Polygon(arrayOf(v[1], v[2], v[6], v[5]), color.darker().darker(), sideTex))
+        if (hRight < tile.height) {
+            val yL = (hRight * FixedMath.ONE).toShort()
+            if (v[6].y > yL || v[5].y > yL) {
+                val v1_c = Vector3(x1, yL.coerceAtMost(v[5].y), z0)
+                val v2_c = Vector3(x1, yL.coerceAtMost(v[6].y), z1)
+                rampPolys.add(Polygon(arrayOf(v1_c, v2_c, v[6], v[5]), color.darker().darker(), tile.sideTexture,
+                    arrayOf(Vector2(0, v1_c.y.toInt() shl 4), Vector2(16 shl 8, v2_c.y.toInt() shl 4), Vector2(16 shl 8, v[6].y.toInt() shl 4), Vector2(0, v[5].y.toInt() shl 4))))
+            }
+        }
         // Back face (towards decreasing Z)
-        rampPolys.add(Polygon(arrayOf(v[0], v[1], v[5], v[4]), color.darker(), sideTex))
+        if (hBack < tile.height) {
+            val yL = (hBack * FixedMath.ONE).toShort()
+            if (v[5].y > yL || v[4].y > yL) {
+                val v0_c = Vector3(x0, yL.coerceAtMost(v[4].y), z0)
+                val v1_c = Vector3(x1, yL.coerceAtMost(v[5].y), z0)
+                rampPolys.add(Polygon(arrayOf(v0_c, v1_c, v[5], v[4]), color.darker(), tile.sideTexture,
+                    arrayOf(Vector2(0, v0_c.y.toInt() shl 4), Vector2(16 shl 8, v1_c.y.toInt() shl 4), Vector2(16 shl 8, v[5].y.toInt() shl 4), Vector2(0, v[4].y.toInt() shl 4))))
+            }
+        }
         // Left face (towards decreasing X)
-        rampPolys.add(Polygon(arrayOf(v[0], v[3], v[7], v[4]), color.darker().darker(), sideTex))
+        if (hLeft < tile.height) {
+            val yL = (hLeft * FixedMath.ONE).toShort()
+            if (v[7].y > yL || v[4].y > yL) {
+                val v0_c = Vector3(x0, yL.coerceAtMost(v[4].y), z0)
+                val v3_c = Vector3(x0, yL.coerceAtMost(v[7].y), z1)
+                rampPolys.add(Polygon(arrayOf(v0_c, v3_c, v[7], v[4]), color.darker().darker(), tile.sideTexture,
+                    arrayOf(Vector2(0, v0_c.y.toInt() shl 4), Vector2(16 shl 8, v3_c.y.toInt() shl 4), Vector2(16 shl 8, v[7].y.toInt() shl 4), Vector2(0, v[4].y.toInt() shl 4))))
+            }
+        }
 
         return rampPolys
     }

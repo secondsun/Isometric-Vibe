@@ -22,7 +22,7 @@ object TextureLoader {
         
         for (i in textureList.indices) {
             if (i * 16 + 16 <= atlas.width) {
-                val img = atlas.getSubimage(i * 16, 0, 16, 16)
+                val img = atlas.getSubimage((i * 16)+1+i, 1, 16, 16)
                 val pixels = IntArray(256)
                 img.getRGB(0, 0, 16, 16, pixels, 0, 16)
                 textures[textureList[i]] = pixels

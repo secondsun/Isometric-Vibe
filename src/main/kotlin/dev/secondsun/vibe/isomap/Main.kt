@@ -79,7 +79,8 @@ fun main() {
     frame.isVisible = true
 
     // Animation Timer
-    val timer = Timer(125) {
+    val delay = 1000 / Renderer.TARGET_FPS
+    val timer = Timer(delay) {
         for (sprite in model.sprites) {
             if (sprite.isWalking) {
                 sprite.animationFrame++

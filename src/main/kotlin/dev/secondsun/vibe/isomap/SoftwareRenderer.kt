@@ -139,14 +139,14 @@ class SoftwareRenderer(val width: Int, val height: Int, val pixels: IntArray = I
                     val u = (minU + (((maxU - minU) * f) shr 8))
                     val v = (minV + (((maxV - minV) * f) shr 8))
                     
-                    // u, v are Q8.8, texture is 16x16
-                    val tu = (u shr 8).coerceIn(0, 15)
-                    val tv = (v shr 8).coerceIn(0, 15)
+        // u, v are Q8.8, texture is 16x16
+                    val tu = (u shr 8) and 15
+                    val tv = (v shr 8) and 15
                     pixels[y * width + x] = texture[tv * 16 + tu]
                 }
             } else if (minX == maxX && minX in 0 until width) {
-                val tu = (minU shr 8).coerceIn(0, 15)
-                val tv = (minV shr 8).coerceIn(0, 15)
+                val tu = (minU shr 8) and 15
+                val tv = (minV shr 8) and 15
                 pixels[y * width + minX] = texture[tv * 16 + tu]
             }
         }

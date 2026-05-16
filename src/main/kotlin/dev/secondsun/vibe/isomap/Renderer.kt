@@ -8,6 +8,11 @@ import java.awt.Color
 class ProjectedSprite(val sprite: Sprite, val projectedPos: Vector3)
 
 class Renderer {
+    companion object {
+        const val RENDER_WIDTH = 256
+        const val RENDER_HEIGHT = 172
+        const val TARGET_FPS = 30
+    }
     private var softwareRenderer: SoftwareRenderer? = null
     private var image: BufferedImage? = null
     private var pixelData: IntArray? = null
@@ -16,17 +21,17 @@ class Renderer {
     private var spriteImage: BufferedImage? = null
     private var spritePixelData: IntArray? = null
 
-    fun render(g: Graphics, model: MapModel, camera: Camera, width: Int, height: Int) {
-        if (softwareRenderer == null || softwareRenderer!!.width != width || softwareRenderer!!.height != height) {
-            val img = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+    fun render(g: Graphics, model: MapModel, camera: Camera, viewportWidth: Int, viewportHeight: Int) {
+        if (softwareRenderer == null) {
+            val img = BufferedImage(RENDER_WIDTH, RENDER_HEIGHT, BufferedImage.TYPE_INT_ARGB)
             val data = (img.raster.dataBuffer as DataBufferInt).data
-            softwareRenderer = SoftwareRenderer(width, height, data)
+            softwareRenderer = SoftwareRenderer(RENDER_WIDTH, RENDER_HEIGHT, data)
             image = img
             pixelData = data
 
-            val sImg = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+            val sImg = BufferedImage(RENDER_WIDTH, RENDER_HEIGHT, BufferedImage.TYPE_INT_ARGB)
             val sData = (sImg.raster.dataBuffer as DataBufferInt).data
-            spriteRenderer = SoftwareRenderer(width, height, sData)
+            spriteRenderer = SoftwareRenderer(RENDER_WIDTH, RENDER_HEIGHT, sData)
             spriteImage = sImg
             spritePixelData = sData
         }
@@ -37,8 +42,8 @@ class Renderer {
         sw.clear(0xFF000000.toInt()) // Solid black background for 3D render
         spriteSw.clear(0) // Transparent background for sprites
 
-        val centerX = width / 2
-        val centerY = height / 2
+        val centerX = RENDER_WIDTH / 2
+        val centerY = RENDER_HEIGHT / 2
 
         // Determine grid iteration order based on yaw for back-to-front rendering
         val yaw = ((camera.yaw % 360) + 360) % 360
@@ -49,10 +54,14 @@ class Renderer {
         for (x in xRange) {
             for (z in zRange) {
                 val tile = model.tiles[x][z]
+                val hF = model.getColumnHeight(x, z + 1)
+                val hR = model.getColumnHeight(x + 1, z)
+                val hB = model.getColumnHeight(x, z - 1)
+                val hL = model.getColumnHeight(x - 1, z)
                 val tilePolys = when (tile.type) {
-                    TileType.CUBE -> model.generateCubePolygons(x.toShort(), z.toShort(), tile.height, tile.color, tile.texture)
-                    TileType.RAMP -> model.generateRampPolygons(x.toShort(), z.toShort(), tile)
-                    TileType.PYRAMID -> model.generatePyramidPolygons(x.toShort(), z.toShort(), tile)
+                    TileType.CUBE -> model.generateCubePolygons(x.toShort(), z.toShort(), tile.height, tile.color, tile.topTexture, tile.sideTexture, hF, hR, hB, hL)
+                    TileType.RAMP -> model.generateRampPolygons(x.toShort(), z.toShort(), tile, hF, hR, hB, hL)
+                    TileType.PYRAMID -> model.generatePyramidPolygons(x.toShort(), z.toShort(), tile, hF, hR, hB, hL)
                 }
                 
                 // Find sprites in this cell
@@ -65,7 +74,7 @@ class Renderer {
                 val renderables = mutableListOf<Any>()
                 renderables.addAll(tilePolys.map { poly ->
                     val projVerts = poly.vertices.map { camera.project(it) }.toTypedArray()
-                    val newPoly = Polygon(projVerts, poly.color, poly.texture)
+                    val newPoly = Polygon(projVerts, poly.color, poly.texture, poly.uvs)
                     newPoly.calculateAverageZ()
                     newPoly
                 })
@@ -92,8 +101,31 @@ class Renderer {
             }
         }
         
-        g.drawImage(spriteImage, 0, 0, null)
-        g.drawImage(image, 0, 0, null)
+        // Calculate aspect ratio scaling
+        val renderAspect = RENDER_WIDTH.toDouble() / RENDER_HEIGHT.toDouble()
+        val viewportAspect = viewportWidth.toDouble() / viewportHeight.toDouble()
+
+        var drawWidth = viewportWidth
+        var drawHeight = viewportHeight
+        var drawX = 0
+        var drawY = 0
+
+        if (viewportAspect > renderAspect) {
+            // Viewport is wider than render resolution: pillarbox
+            drawWidth = (viewportHeight * renderAspect).toInt()
+            drawX = (viewportWidth - drawWidth) / 2
+        } else {
+            // Viewport is taller than render resolution: letterbox
+            drawHeight = (viewportWidth / renderAspect).toInt()
+            drawY = (viewportHeight - drawHeight) / 2
+        }
+
+        // Draw background (black) to fill the entire viewport
+        g.color = Color.BLACK
+        g.fillRect(0, 0, viewportWidth, viewportHeight)
+
+        g.drawImage(spriteImage, drawX, drawY, drawWidth, drawHeight, null)
+        g.drawImage(image, drawX, drawY, drawWidth, drawHeight, null)
     }
 
     private fun renderPolygon(sw: SoftwareRenderer, poly: Polygon, centerX: Int, centerY: Int) {
@@ -110,13 +142,21 @@ class Renderer {
         if (texture != null && n >= 3) {
             val uPoints = IntArray(n)
             val vPoints = IntArray(n)
-            uPoints[0] = 0; vPoints[0] = 0
-            uPoints[1] = 16 shl 8; vPoints[1] = 0
-            if (n >= 4) {
-                uPoints[2] = 16 shl 8; vPoints[2] = 16 shl 8
-                uPoints[3] = 0; vPoints[3] = 16 shl 8
+            if (poly.uvs != null && poly.uvs.size == n) {
+                for (i in 0 until n) {
+                    uPoints[i] = poly.uvs[i].x
+                    vPoints[i] = poly.uvs[i].y
+                }
             } else {
-                uPoints[2] = 16 shl 8; vPoints[2] = 16 shl 8
+                // Fallback or default UVs if not provided
+                uPoints[0] = 0; vPoints[0] = 0
+                uPoints[1] = 16 shl 8; vPoints[1] = 0
+                if (n >= 4) {
+                    uPoints[2] = 16 shl 8; vPoints[2] = 16 shl 8
+                    uPoints[3] = 0; vPoints[3] = 16 shl 8
+                } else {
+                    uPoints[2] = 16 shl 8; vPoints[2] = 16 shl 8
+                }
             }
             sw.drawTexturedPoly(xPoints, yPoints, uPoints, vPoints, n, texture)
         } else {
@@ -125,7 +165,7 @@ class Renderer {
         
         for (i in 0 until n) {
             val j = (i + 1) % n
-            sw.drawLine(xPoints[i], yPoints[i], xPoints[j], yPoints[j], 0xFF000000.toInt())
+            //sw.drawLine(xPoints[i], yPoints[i], xPoints[j], yPoints[j], 0xFF000000.toInt())
         }
     }
 
