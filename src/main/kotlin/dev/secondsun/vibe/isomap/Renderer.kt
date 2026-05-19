@@ -6,6 +6,7 @@ import java.awt.image.DataBufferInt
 import java.awt.Color
 
 class ProjectedSprite(val sprite: Sprite, val projectedPos: Vector3)
+class ProjectedObject(val obj: PlacedObject, val polygons: List<Polygon>)
 
 class Renderer {
     companion object {
@@ -71,6 +72,21 @@ class Renderer {
                     sx == x && sz == z
                 }
 
+                // Find objects whose "base" tile is (x, z)
+                // Base tile depends on camera yaw to ensure it's the "frontmost" one.
+                val cellObjects = model.objects.filter { obj ->
+                    // For now, let's use a simpler logic: an object is associated with its (x, z) coordinate.
+                    // This works if we iterate in an order that respects the object's footprint.
+                    // Since objects are immutable and we don't have complex interleaving, 
+                    // rendering at (x, z) should be fine if (x, z) is the front-most tile of the object's footprint
+                    // relative to the camera.
+                    
+                    val frontX = if (yaw in 0 until 180) obj.x + obj.widthInTiles - 1 else obj.x
+                    val frontZ = if (yaw in 90 until 270) obj.z + obj.depthInTiles - 1 else obj.z
+                    
+                    frontX == x && frontZ == z
+                }
+
                 val renderables = mutableListOf<Any>()
                 renderables.addAll(tilePolys.map { poly ->
                     val projVerts = poly.vertices.map { camera.project(it) }.toTypedArray()
@@ -82,8 +98,32 @@ class Renderer {
                     val projPos = camera.project(Vector3(sprite.x, sprite.y, sprite.z))
                     ProjectedSprite(sprite, projPos)
                 })
+                renderables.addAll(cellObjects.map { obj ->
+                    val modelPolys = obj.model.rotatedPolygons[obj.orientation] ?: obj.model.polygons
+                    val projectedPolys = modelPolys.map { poly ->
+                        val worldVerts = poly.vertices.map { v ->
+                            Vector3(
+                                (v.x + (obj.x shl FixedMath.SHIFT)).toShort(),
+                                (v.y + obj.y).toShort(),
+                                (v.z + (obj.z shl FixedMath.SHIFT)).toShort()
+                            )
+                        }
+                        val projVerts = worldVerts.map { camera.project(it) }.toTypedArray()
+                        val newPoly = Polygon(projVerts, poly.color, poly.texture, poly.uvs)
+                        newPoly.calculateAverageZ()
+                        newPoly
+                    }
+                    ProjectedObject(obj, projectedPolys)
+                })
 
-                val sorted = renderables.sortedByDescending { 
+                val sorted = renderables.flatMap { 
+                    when (it) {
+                        is Polygon -> listOf(it)
+                        is ProjectedSprite -> listOf(it)
+                        is ProjectedObject -> it.polygons // Add all polygons of the object
+                        else -> emptyList()
+                    }
+                }.sortedByDescending { 
                     when (it) {
                         is Polygon -> it.averageZ
                         is ProjectedSprite -> it.projectedPos.z.toInt() - 2 // Offset slightly closer (smaller Z)

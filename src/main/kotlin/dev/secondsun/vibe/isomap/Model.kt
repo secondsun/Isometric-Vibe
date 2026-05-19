@@ -3,12 +3,16 @@ package dev.secondsun.vibe.isomap
 import java.awt.Color
 
 enum class TileType { CUBE, RAMP, PYRAMID }
-enum class TextureType { NONE, WATER, WALL, LAVA, BRIDGE, WALL_2, ROAD, ROOF }
+enum class TextureType { NONE, WATER, WALL, LAVA, BRIDGE, WALL_2, ROAD, ROOF, WOOD }
 enum class RampDirection { NORTH, SOUTH, EAST, WEST }
 enum class RampAngle(val degrees: Float) {
     ANGLE_15(15f),
     ANGLE_22_5(22.5f),
     ANGLE_45(45f)
+}
+
+enum class Orientation {
+    DEG_0, DEG_90, DEG_180, DEG_270
 }
 
 enum class SpriteDirection { SW, S, SE, E, NE, N, NW, W }
@@ -50,10 +54,46 @@ data class Polygon(
     }
 }
 
+class StaticModel(val polygons: List<Polygon>) {
+    val rotatedPolygons = mutableMapOf<Orientation, List<Polygon>>()
+
+    init {
+        rotatedPolygons[Orientation.DEG_0] = polygons
+        rotatedPolygons[Orientation.DEG_90] = rotate(Orientation.DEG_90)
+        rotatedPolygons[Orientation.DEG_180] = rotate(Orientation.DEG_180)
+        rotatedPolygons[Orientation.DEG_270] = rotate(Orientation.DEG_270)
+    }
+
+    private fun rotate(orientation: Orientation): List<Polygon> {
+        return polygons.map { poly ->
+            val newVertices = poly.vertices.map { v ->
+                when (orientation) {
+                    Orientation.DEG_90 -> Vector3(v.z, v.y, (-v.x).toShort())
+                    Orientation.DEG_180 -> Vector3((-v.x).toShort(), v.y, (-v.z).toShort())
+                    Orientation.DEG_270 -> Vector3((-v.z).toShort(), v.y, v.x)
+                    else -> v
+                }
+            }.toTypedArray()
+            Polygon(newVertices, poly.color, poly.texture, poly.uvs)
+        }
+    }
+}
+
+data class PlacedObject(
+    val model: StaticModel,
+    val x: Int, // Tile X
+    val z: Int, // Tile Z
+    val y: Short, // Height in Q8.8
+    val orientation: Orientation = Orientation.DEG_0,
+    val widthInTiles: Int = 1,
+    val depthInTiles: Int = 1
+)
+
 class MapModel {
     val size = 8
     val tiles = Array(size) { Array(size) { Tile(TileType.CUBE, 0, Color.GRAY) } }
     val sprites = mutableListOf<Sprite>()
+    val objects = mutableListOf<PlacedObject>()
 
     init {
         // Base ground: Dark Green
@@ -106,11 +146,11 @@ class MapModel {
         tiles[7][7] = Tile(TileType.CUBE, 0, Color.BLUE, topTexture = TextureType.WATER)
 
         // Floating stones
-        tiles[0][3] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA) // Now lava stones!
+        tiles[0][3] = Tile(TileType.CUBE, 2, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA) // Now lava stones!
         tiles[0][2] = Tile(TileType.RAMP, 4, Color.WHITE, RampDirection.NORTH, RampAngle.ANGLE_15, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
-        tiles[3][0] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
-        tiles[7][4] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
-        tiles[4][7] = Tile(TileType.CUBE, 4, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
+        tiles[3][0] = Tile(TileType.CUBE, 2, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
+        tiles[7][4] = Tile(TileType.CUBE, 2, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
+        tiles[4][7] = Tile(TileType.CUBE, 2, Color.WHITE, topTexture = TextureType.LAVA, sideTexture = TextureType.LAVA)
         
         // Pyramids
         tiles[1][1] = Tile(TileType.PYRAMID, 1, Color.CYAN, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL)
@@ -120,6 +160,67 @@ class MapModel {
 
         // Add some sprites
         sprites.add(Sprite(FixedMath.fromFloat(1.5f), FixedMath.fromFloat(1.0f), FixedMath.fromFloat(1.5f), SpriteDirection.S, isWalking = true))
+
+        // Example: Add a 3x1 object
+        val benchPolys = mutableListOf<Polygon>()
+        // Simple bench mesh
+        // Seat
+        benchPolys.add(Polygon(arrayOf(
+            Vector3.fromFloat(0.1f, 0.5f, 0.2f),
+            Vector3.fromFloat(2.9f, 0.5f, 0.2f),
+            Vector3.fromFloat(2.9f, 0.5f, 0.8f),
+            Vector3.fromFloat(0.1f, 0.5f, 0.8f)
+        ), Color(0x8B4513), texture = TextureType.BRIDGE, uvs = arrayOf(
+            Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(16 shl 8, 16 shl 8), Vector2(0, 16 shl 8)
+        )))
+        // Backrest (Vertical)
+        benchPolys.add(Polygon(arrayOf(
+            Vector3.fromFloat(0.1f, 0.5f, 0.8f),
+            Vector3.fromFloat(2.9f, 0.5f, 0.8f),
+            Vector3.fromFloat(2.9f, 1.5f, 0.8f),
+            Vector3.fromFloat(0.1f, 1.5f, 0.8f)
+        ), Color(0x8B4513), texture = TextureType.BRIDGE, uvs = arrayOf(
+            Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(16 shl 8, 16 shl 8), Vector2(0, 16 shl 8)
+        )))
+
+        // Legs
+        val legWidth = 0.2f
+        val legHeight = 0.5f
+        val legPositions = listOf(
+            Pair(0.1f, 0.2f), // Front Left
+            Pair(2.7f, 0.2f), // Front Right
+            Pair(2.7f, 0.6f), // Back Right
+            Pair(0.1f, 0.6f)  // Back Left
+        )
+
+        for (pos in legPositions) {
+            val lx = pos.first
+            val lz = pos.second
+            // Front face of leg
+            benchPolys.add(Polygon(arrayOf(
+                Vector3.fromFloat(lx, 0f, lz + legWidth),
+                Vector3.fromFloat(lx + legWidth, 0f, lz + legWidth),
+                Vector3.fromFloat(lx + legWidth, legHeight, lz + legWidth),
+                Vector3.fromFloat(lx, legHeight, lz + legWidth)
+            ), Color.GRAY, texture = TextureType.WALL, uvs = arrayOf(
+                Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(16 shl 8, 16 shl 8), Vector2(0, 16 shl 8)
+            )))
+            // Side face of leg
+            benchPolys.add(Polygon(arrayOf(
+                Vector3.fromFloat(lx + legWidth, 0f, lz),
+                Vector3.fromFloat(lx + legWidth, 0f, lz + legWidth),
+                Vector3.fromFloat(lx + legWidth, legHeight, lz + legWidth),
+                Vector3.fromFloat(lx + legWidth, legHeight, lz)
+            ), Color.GRAY, texture = TextureType.WALL, uvs = arrayOf(
+                Vector2(0, 0), Vector2(16 shl 8, 0), Vector2(16 shl 8, 16 shl 8), Vector2(0, 16 shl 8)
+            )))
+        }
+        
+        val benchModel = StaticModel(benchPolys)
+        objects.add(PlacedObject(benchModel, 2, 0, FixedMath.fromFloat(2.0f), widthInTiles = 3, depthInTiles = 1))
+        
+        // Add another one rotated
+        objects.add(PlacedObject(benchModel, 5, 2, FixedMath.fromFloat(2.0f), orientation = Orientation.DEG_90, widthInTiles = 1, depthInTiles = 3))
     }
 
     fun getColumnHeight(x: Int, z: Int): Int {
