@@ -42,18 +42,18 @@ class Renderer {
         
         sw.clear(0xFF000000.toInt()) // Solid black background for 3D render
         spriteSw.clear(0) // Transparent background for sprites
+        
+        sw.clearMask()
+        spriteSw.clearMask()
 
         val centerX = RENDER_WIDTH / 2
         val centerY = RENDER_HEIGHT / 2
 
-        // Determine grid iteration order based on yaw for back-to-front rendering
-        val yaw = ((camera.yaw % 360) + 360) % 360
-        
-        val xRange = if (yaw in 0 until 180) 0..7 else 7 downTo 0
-        val zRange = if (yaw in 90 until 270) 0..7 else 7 downTo 0
+        val renderables = mutableListOf<Any>()
 
-        for (x in xRange) {
-            for (z in zRange) {
+        // 1. Collect all tile polygons
+        for (x in 0 until model.size) {
+            for (z in 0 until model.size) {
                 val tile = model.tiles[x][z]
                 val hF = model.getColumnHeight(x, z + 1)
                 val hR = model.getColumnHeight(x + 1, z)
@@ -64,80 +64,55 @@ class Renderer {
                     TileType.RAMP -> model.generateRampPolygons(x.toShort(), z.toShort(), tile, hF, hR, hB, hL)
                     TileType.PYRAMID -> model.generatePyramidPolygons(x.toShort(), z.toShort(), tile, hF, hR, hB, hL)
                 }
-                
-                // Find sprites in this cell
-                val cellSprites = model.sprites.filter { s ->
-                    val sx = s.x.toInt() shr FixedMath.SHIFT
-                    val sz = s.z.toInt() shr FixedMath.SHIFT
-                    sx == x && sz == z
-                }
 
-                // Find objects whose "base" tile is (x, z)
-                // Base tile depends on camera yaw to ensure it's the "frontmost" one.
-                val cellObjects = model.objects.filter { obj ->
-                    // For now, let's use a simpler logic: an object is associated with its (x, z) coordinate.
-                    // This works if we iterate in an order that respects the object's footprint.
-                    // Since objects are immutable and we don't have complex interleaving, 
-                    // rendering at (x, z) should be fine if (x, z) is the front-most tile of the object's footprint
-                    // relative to the camera.
-                    
-                    val frontX = if (yaw in 0 until 180) obj.x + obj.widthInTiles - 1 else obj.x
-                    val frontZ = if (yaw in 90 until 270) obj.z + obj.depthInTiles - 1 else obj.z
-                    
-                    frontX == x && frontZ == z
-                }
-
-                val renderables = mutableListOf<Any>()
                 renderables.addAll(tilePolys.map { poly ->
                     val projVerts = poly.vertices.map { camera.project(it) }.toTypedArray()
                     val newPoly = Polygon(projVerts, poly.color, poly.texture, poly.uvs)
                     newPoly.calculateAverageZ()
                     newPoly
                 })
-                renderables.addAll(cellSprites.map { sprite ->
-                    val projPos = camera.project(Vector3(sprite.x, sprite.y, sprite.z))
-                    ProjectedSprite(sprite, projPos)
-                })
-                renderables.addAll(cellObjects.map { obj ->
-                    val modelPolys = obj.model.rotatedPolygons[obj.orientation] ?: obj.model.polygons
-                    val projectedPolys = modelPolys.map { poly ->
-                        val worldVerts = poly.vertices.map { v ->
-                            Vector3(
-                                (v.x + (obj.x shl FixedMath.SHIFT)).toShort(),
-                                (v.y + obj.y).toShort(),
-                                (v.z + (obj.z shl FixedMath.SHIFT)).toShort()
-                            )
-                        }
-                        val projVerts = worldVerts.map { camera.project(it) }.toTypedArray()
-                        val newPoly = Polygon(projVerts, poly.color, poly.texture, poly.uvs)
-                        newPoly.calculateAverageZ()
-                        newPoly
-                    }
-                    ProjectedObject(obj, projectedPolys)
-                })
+            }
+        }
 
-                val sorted = renderables.flatMap { 
-                    when (it) {
-                        is Polygon -> listOf(it)
-                        is ProjectedSprite -> listOf(it)
-                        is ProjectedObject -> it.polygons // Add all polygons of the object
-                        else -> emptyList()
-                    }
-                }.sortedByDescending { 
-                    when (it) {
-                        is Polygon -> it.averageZ
-                        is ProjectedSprite -> it.projectedPos.z.toInt() - 2 // Offset slightly closer (smaller Z)
-                        else -> 0
-                    }
-                }
+        // 2. Collect all sprites
+        for (sprite in model.sprites) {
+            val projPos = camera.project(Vector3(sprite.x, sprite.y, sprite.z))
+            renderables.add(ProjectedSprite(sprite, projPos))
+        }
 
-                for (obj in sorted) {
-                    if (obj is Polygon) {
-                        renderPolygon(sw, obj, centerX, centerY)
-                    } else if (obj is ProjectedSprite) {
-                        renderSprite(sw, spriteSw, obj, camera.yaw, camera.zoom, centerX, centerY)
-                    }
+        // 3. Collect all objects
+        for (obj in model.objects) {
+            val modelPolys = obj.model.rotatedPolygons[obj.orientation] ?: obj.model.polygons
+            for (poly in modelPolys) {
+                val worldVerts = poly.vertices.map { v ->
+                    Vector3(
+                        (v.x + (obj.x shl FixedMath.SHIFT)).toShort(),
+                        (v.y + obj.y).toShort(),
+                        (v.z + (obj.z shl FixedMath.SHIFT)).toShort()
+                    )
                 }
+                val projVerts = worldVerts.map { camera.project(it) }.toTypedArray()
+                val newPoly = Polygon(projVerts, poly.color, poly.texture, poly.uvs)
+                newPoly.calculateAverageZ()
+                renderables.add(newPoly)
+            }
+        }
+
+        // 4. Global Sort for front-to-back rendering
+        val sorted = renderables.sortedBy {
+            when (it) {
+                is Polygon -> it.averageZ
+                is ProjectedSprite -> it.projectedPos.z.toInt() - 2 // Offset slightly closer
+                else -> 0
+            }
+        }
+
+        // 5. Render everything in order
+        for (obj in sorted) {
+            if (obj is Polygon) {
+                renderPolygon(sw, obj, centerX, centerY)
+            } else if (obj is ProjectedSprite) {
+                renderSprite(sw, spriteSw, obj, camera.yaw, camera.zoom, centerX, centerY)
             }
         }
         

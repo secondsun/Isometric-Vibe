@@ -159,7 +159,7 @@ class MapModel {
         tiles[6][6] = Tile(TileType.PYRAMID, 4, Color.PINK, topTexture = TextureType.ROOF, sideTexture = TextureType.WALL)
 
         // Add some sprites
-        sprites.add(Sprite(FixedMath.fromFloat(1.5f), FixedMath.fromFloat(1.0f), FixedMath.fromFloat(1.5f), SpriteDirection.S, isWalking = true))
+        sprites.add(Sprite(FixedMath.fromFloat(1.5f), FixedMath.fromFloat(2.0f), FixedMath.fromFloat(1.5f), SpriteDirection.S, isWalking = true))
 
         // Example: Add a 3x1 object
         val benchPolys = mutableListOf<Polygon>()
